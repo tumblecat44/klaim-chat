@@ -155,7 +155,7 @@ class HTMLManager {
     return false;
   }
   
-  // HTML 문법 검증
+  // HTML 문법 검증 (자동 수정 포함)
   isValidHTML(html) {
     try {
       const parser = new DOMParser();
@@ -164,7 +164,24 @@ class HTMLManager {
       // parsererror 요소 확인
       const errors = doc.querySelector('parsererror');
       if (errors) {
-        console.error('HTML 파싱 오류:', errors.textContent);
+        console.error('HTML 파싱 오류 감지:', errors.textContent);
+        
+        // 규칙 기반 자동 수정 시도
+        console.log('🔧 규칙 기반 HTML 자동 수정 시도...');
+        const fixedHTML = this.autoFixBasicErrors(html);
+        
+        if (fixedHTML !== html) {
+          // 수정된 HTML로 재검증
+          const fixedDoc = parser.parseFromString(fixedHTML, 'text/html');
+          const fixedErrors = fixedDoc.querySelector('parsererror');
+          
+          if (!fixedErrors) {
+            console.log('✅ 규칙 기반 수정 성공');
+            this.currentHTML = fixedHTML;
+            return true;
+          }
+        }
+        
         return false;
       }
       
@@ -180,6 +197,60 @@ class HTMLManager {
       console.error('HTML 검증 중 오류:', error);
       return false;
     }
+  }
+  
+  // 규칙 기반 HTML 오류 자동 수정
+  autoFixBasicErrors(html) {
+    let fixedHTML = html;
+    let fixCount = 0;
+    
+    console.log('🔧 기본 HTML 오류 수정 시작...');
+    
+    // 1. 닫히지 않은 self-closing 태그 수정
+    const selfClosingTags = ['br', 'hr', 'img', 'input', 'meta', 'link'];
+    selfClosingTags.forEach(tag => {
+      const regex = new RegExp(`<${tag}([^>]*)>(?!</)`, 'gi');
+      const matches = fixedHTML.match(regex);
+      if (matches) {
+        fixedHTML = fixedHTML.replace(regex, `<${tag}$1 />`);
+        fixCount += matches.length;
+      }
+    });
+    
+    // 2. 속성값 따옴표 추가
+    fixedHTML = fixedHTML.replace(/(\w+)=([^\s"'][^\s>]*)/g, '$1="$2"');
+    
+    // 3. 잘못된 중첩 태그 수정 (간단한 케이스)
+    fixedHTML = fixedHTML.replace(/<(div|p|h[1-6])([^>]*)><\/\1>\s*<\1\2>/gi, '<$1$2>');
+    
+    // 4. 특수문자 이스케이프
+    fixedHTML = fixedHTML.replace(/&(?![a-zA-Z]+;)/g, '&amp;');
+    
+    // 5. 닫히지 않은 기본 태그 자동 닫기 (마지막 시도)
+    const commonTags = ['div', 'p', 'span', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
+    commonTags.forEach(tag => {
+      const openRegex = new RegExp(`<${tag}([^>]*?)>`, 'gi');
+      const closeRegex = new RegExp(`</${tag}>`, 'gi');
+      
+      const openMatches = (fixedHTML.match(openRegex) || []).length;
+      const closeMatches = (fixedHTML.match(closeRegex) || []).length;
+      
+      if (openMatches > closeMatches) {
+        const diff = openMatches - closeMatches;
+        for (let i = 0; i < diff; i++) {
+          fixedHTML += `</${tag}>`;
+          fixCount++;
+        }
+      }
+    });
+    
+    if (fixCount > 0) {
+      console.log(`🔧 ${fixCount}개의 기본 오류를 수정했습니다.`);
+    } else {
+      console.log('🔧 수정할 기본 오류가 없습니다.');
+    }
+    
+    return fixedHTML;
   }
   
   // 히스토리 관리

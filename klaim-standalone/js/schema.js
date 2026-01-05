@@ -5,7 +5,7 @@ export const htmlOperationsSchema = {
   properties: {
     operations: {
       type: "ARRAY",
-      description: "HTML 편집을 위한 search/replace 연산 배열",
+      description: "HTML 편집을 위한 search/replace 연산 배열 (단순 텍스트 변경용)",
       items: {
         type: "OBJECT",
         properties: {
@@ -23,8 +23,30 @@ export const htmlOperationsSchema = {
           }
         },
         required: ["search", "replace"]
-      },
-      minItems: 1
+      }
+    },
+    actions: {
+      type: "ARRAY",
+      description: "복잡한 DOM 조작을 위한 액션 배열 (플랜 추가/삭제, 만료일 설정 등)",
+      items: {
+        type: "OBJECT",
+        properties: {
+          type: {
+            type: "STRING",
+            description: "액션 타입",
+            enum: ["ADD_PLAN", "DELETE_PLAN", "UPDATE_PLAN", "REORDER_PLANS", "SET_EXPIRATION", "CLEAR_EXPIRATION", "ADD_BULLET_POINT", "REMOVE_BULLET_POINT", "SET_HIGHLIGHT", "BULK_UPDATE_PRICING"]
+          },
+          data: {
+            type: "OBJECT",
+            description: "액션에 필요한 데이터"
+          },
+          description: {
+            type: "STRING",
+            description: "이 액션에 대한 설명"
+          }
+        },
+        required: ["type", "data"]
+      }
     },
     response: {
       type: "OBJECT",
@@ -52,39 +74,55 @@ export const htmlOperationsSchema = {
       required: ["summary"]
     }
   },
-  required: ["operations", "response"]
+  required: ["response"]
 };
 
-// HTML 편집 전용 시스템 프롬프트
+// 하이브리드 HTML/Action 처리 시스템 프롬프트
 export const htmlEditPrompt = `당신은 Klaim 프로모션 페이지 빌더의 전문 AI 어시스턴트입니다.
-효율적이고 명확한 커뮤니케이션을 지향합니다.
+HTML 편집과 JavaScript 액션을 조합하여 복잡한 요청을 처리할 수 있습니다.
 
 ## 역할
-- HTML 코드를 직접 편집하여 프로모션 페이지를 수정
-- 사용자 요청을 정확히 처리하고 관련된 유용한 제안 제공
-- 불명확한 요청에는 구체적인 선택지와 함께 질문
+- 단순한 텍스트/색상 변경: HTML operations 사용
+- 복잡한 구조 변경 (플랜 추가/삭제, 만료일 설정): actions 사용
+- 복합 요청: operations + actions 조합 사용
 
-## 응답 원칙
-1. **간결함**: 성공 시 1-2문장으로 요약
-2. **맥락적 제안**: 관련 있을 때만, 최대 2개
-3. **명확한 질문**: 정보 부족 시 선택지 제공
-4. **전문적 톤**: 이모지 최소화 (💡 제안, ⚠️ 경고만)
+## 처리 방식 선택 가이드
 
-## 주요 기능
-1. **텍스트 변경**: brand-name, plan-price, description 등
-2. **색상 변경**: CSS 변수 (--primary-color, --secondary-color)
-3. **플랜 관리**: pricing-card 추가/수정/삭제
-4. **배너/할인**: limited-banner, discount-badge 활성화
-5. **만료일**: countdown 컴포넌트 설정
+### HTML Operations 사용 (단순 편집)
+- 텍스트 변경: 제목, 설명, 가격 수정
+- 색상 변경: CSS 변수 수정 (--primary-color 등)
+- 클래스 토글: active/hidden 클래스 추가/제거
+
+### Actions 사용 (복잡한 DOM 조작)
+- **ADD_PLAN**: 새 가격 플랜 추가
+- **DELETE_PLAN**: 기존 플랜 삭제 (index 기준)
+- **UPDATE_PLAN**: 플랜 전체 정보 업데이트
+- **REORDER_PLANS**: 플랜 순서 변경
+- **BULK_UPDATE_PRICING**: 여러 플랜 일괄 생성/수정
+- **SET_EXPIRATION**: 만료일 설정 및 카운트다운 활성화
+- **CLEAR_EXPIRATION**: 만료일 제거
+- **ADD_BULLET_POINT**: 플랜에 기능 목록 추가
+- **REMOVE_BULLET_POINT**: 기능 목록 제거
+- **SET_HIGHLIGHT**: 추천 플랜 설정
 
 ## 응답 형식
-모든 응답은 operations와 response를 포함해야 합니다:
-- operations: HTML 변경 연산 (빈 배열도 가능)
-- response:
-  - summary: 완료 요약 (필수)
-  - details: 세부 변경사항 (복잡한 작업 시)
-  - suggestions: 관련 제안 (맥락상 유용할 때만)
-  - clarification: 추가 정보 필요 시 질문
+- operations: HTML 편집 연산 배열 (옵션)
+- actions: DOM 조작 액션 배열 (옵션)  
+- response: 사용자 응답 (필수)
+
+## 예시
+
+### 단순 요청 (HTML만):
+사용자: "제목을 'Winter Sale'로 바꿔줘"
+→ { operations: [텍스트 변경], actions: [], response: {...} }
+
+### 복잡한 요청 (액션만):
+사용자: "스타터 플랜을 추가해줘"
+→ { operations: [], actions: [{type: "ADD_PLAN", data: {...}}], response: {...} }
+
+### 복합 요청 (둘 다):
+사용자: "제목을 'Christmas Sale'로 바꾸고 3개 플랜 만들어줘"
+→ { operations: [제목 변경], actions: [{type: "BULK_UPDATE_PRICING", ...}], response: {...} }
 
 ## 예시
 
@@ -197,33 +235,103 @@ export const colorThemeOperations = {
   ]
 };
 
-// HTML 연산 검증 함수
+// 하이브리드 스키마 검증 함수
 export function validateHTMLOperations(data) {
   const errors = [];
   
-  if (!data.operations || !Array.isArray(data.operations)) {
-    errors.push('operations 배열이 필요합니다.');
+  // response는 항상 필수
+  if (!data.response || typeof data.response !== 'object') {
+    errors.push('response 객체가 필요합니다.');
     return errors;
   }
   
-  data.operations.forEach((operation, index) => {
-    const opNum = index + 1;
+  if (!data.response.summary || typeof data.response.summary !== 'string') {
+    errors.push('response.summary 문자열이 필요합니다.');
+  }
+  
+  // operations와 actions 중 최소 하나는 있어야 함 (또는 clarification 있을 때는 둘 다 비어도 됨)
+  const hasOperations = data.operations && Array.isArray(data.operations) && data.operations.length > 0;
+  const hasActions = data.actions && Array.isArray(data.actions) && data.actions.length > 0;
+  const hasClarification = data.response.clarification && data.response.clarification.trim().length > 0;
+  
+  if (!hasOperations && !hasActions && !hasClarification) {
+    errors.push('operations 또는 actions 중 최소 하나는 있어야 하거나, clarification이 있어야 합니다.');
+  }
+  
+  // operations 검증
+  if (data.operations && Array.isArray(data.operations)) {
+    data.operations.forEach((operation, index) => {
+      const opNum = index + 1;
+      
+      if (!operation.search || typeof operation.search !== 'string') {
+        errors.push(`${opNum}번째 operation에 search 문자열이 없습니다.`);
+      }
+      
+      if (typeof operation.replace !== 'string') {
+        errors.push(`${opNum}번째 operation에 replace 문자열이 없습니다.`);
+      }
+    });
+  }
+  
+  // actions 검증
+  if (data.actions && Array.isArray(data.actions)) {
+    const validActionTypes = ["ADD_PLAN", "DELETE_PLAN", "UPDATE_PLAN", "REORDER_PLANS", "SET_EXPIRATION", "CLEAR_EXPIRATION", "ADD_BULLET_POINT", "REMOVE_BULLET_POINT", "SET_HIGHLIGHT", "BULK_UPDATE_PRICING"];
     
-    if (!operation.search || typeof operation.search !== 'string') {
-      errors.push(`${opNum}번째 연산에 search 문자열이 없습니다.`);
-    }
-    
-    if (typeof operation.replace !== 'string') {
-      errors.push(`${opNum}번째 연산에 replace 문자열이 없습니다.`);
-    }
-    
-    if (operation.search === operation.replace) {
-      errors.push(`${opNum}번째 연산의 search와 replace가 동일합니다.`);
-    }
-    
-  });
+    data.actions.forEach((action, index) => {
+      const actNum = index + 1;
+      
+      if (!action.type || typeof action.type !== 'string') {
+        errors.push(`${actNum}번째 action에 type이 없습니다.`);
+      } else if (!validActionTypes.includes(action.type)) {
+        errors.push(`${actNum}번째 action의 type '${action.type}'이 유효하지 않습니다.`);
+      }
+      
+      if (!action.data || typeof action.data !== 'object') {
+        errors.push(`${actNum}번째 action에 data 객체가 없습니다.`);
+      }
+    });
+  }
   
   return errors;
 }
+
+// HTML 수정 전용 스키마 (전체 HTML 교체 방식)
+export const htmlFixSchema = {
+  type: "OBJECT",
+  properties: {
+    fixedHTML: {
+      type: "STRING",
+      description: "수정된 완전한 HTML 코드"
+    },
+    fixDescription: {
+      type: "STRING", 
+      description: "어떤 HTML 오류를 수정했는지 설명"
+    },
+    success: {
+      type: "BOOLEAN",
+      description: "수정 성공 여부"
+    }
+  },
+  required: ["fixedHTML", "fixDescription", "success"]
+};
+
+// HTML 수정 전용 프롬프트
+export const htmlFixPrompt = `당신은 HTML 문법 오류 수정 전문가입니다.
+
+## 역할
+- 파싱 오류가 있는 HTML 코드를 수정
+- 완전하고 유효한 HTML 문서 생성
+- 원본 내용과 스타일은 최대한 보존
+
+## 수정 원칙
+1. **구조 보존**: 기존 콘텐츠와 레이아웃 유지
+2. **문법 수정**: HTML5 표준 준수
+3. **완전성**: 닫히지 않은 태그, 잘못된 속성 등 모두 수정
+4. **최소 변경**: 오류 수정에 필요한 최소한의 변경만
+
+## 응답 형식
+- fixedHTML: 수정된 완전한 HTML
+- fixDescription: 수정한 내용 요약
+- success: true (수정 완료) 또는 false (수정 불가)`;
 
 export default htmlOperationsSchema;

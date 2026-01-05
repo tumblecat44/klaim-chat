@@ -2,7 +2,7 @@
 // 모든 사용자 요청을 HTML search/replace 연산으로 처리
 
 import geminiAPI from './gemini.js';
-import { htmlOperationsSchema, htmlEditPrompt, validateHTMLOperations } from './schema.js';
+import { htmlOperationsSchema, htmlEditPrompt, validateHTMLOperations, htmlFixSchema, htmlFixPrompt } from './schema.js';
 import htmlManager from './html-manager.js';
 
 class AIHandler {
@@ -50,6 +50,18 @@ class AIHandler {
       const result = htmlManager.applyOperations(aiResponse.operations);
       
       if (!result.success) {
+        // HTML 연산 실패 시 AI 기반 자동 수정 시도
+        if (result.error.includes('HTML') || result.error.includes('파싱')) {
+          console.log('🤖 AI 기반 HTML 수정 시도...');
+          const fixResult = await this.fixHTMLWithAI(userMessage, result.error);
+          
+          if (fixResult.success) {
+            console.log('✅ AI 기반 수정 성공');
+            this.updatePreview();
+            return fixResult;
+          }
+        }
+        
         throw new Error(result.error);
       }
       
@@ -184,9 +196,9 @@ response 필드를 반드시 포함하여 사용자에게 친절한 응답을 �
       };
     }
     
-    if (error.message.includes('Invalid HTML')) {
+    if (error.message.includes('Invalid HTML') || error.message.includes('HTML')) {
       return {
-        message: '⚠️ 변경사항이 유효하지 않은 HTML을 생성할 수 있어 취소되었습니다. 다시 시도해주세요.',
+        message: '⚠️ HTML 파싱 오류가 발생했지만 자동 수정을 시도했습니다. 문제가 지속되면 다른 방식으로 요청해주세요.',
         type: 'error'
       };
     }
@@ -255,6 +267,79 @@ response 필드를 반드시 포함하여 사용자에게 친절한 응답을 �
     }
   }
   
+  // AI 기반 HTML 수정 (최후 수단)
+  async fixHTMLWithAI(originalUserMessage, errorMessage) {
+    try {
+      console.log('🤖 AI HTML 수정 요청 시작...');
+      
+      const currentHTML = htmlManager.getCurrentHTML();
+      
+      // HTML 수정용 프롬프트 생성
+      const fixPrompt = `${htmlFixPrompt}
+
+현재 오류가 있는 HTML:
+\`\`\`html
+${currentHTML}
+\`\`\`
+
+발생한 오류: ${errorMessage}
+원본 사용자 요청: "${originalUserMessage}"
+
+위 HTML의 문법 오류를 수정하여 유효한 HTML을 생성해주세요.
+사용자의 원본 요청 의도는 유지하되, HTML 파싱 오류만 해결해주세요.`;
+
+      // AI에 HTML 수정 요청
+      const aiFixResponse = await geminiAPI.generateStructuredOutput(fixPrompt, htmlFixSchema);
+      
+      if (!aiFixResponse.success || !aiFixResponse.fixedHTML) {
+        console.error('❌ AI HTML 수정 실패');
+        return {
+          success: false,
+          message: 'AI가 HTML을 수정할 수 없습니다.',
+          type: 'error'
+        };
+      }
+      
+      // 수정된 HTML 유효성 검사
+      const isValid = htmlManager.isValidHTML(aiFixResponse.fixedHTML);
+      if (!isValid) {
+        console.error('❌ AI가 수정한 HTML도 유효하지 않음');
+        return {
+          success: false,
+          message: 'HTML 자동 수정에 실패했습니다.',
+          type: 'error'
+        };
+      }
+      
+      // 성공적으로 수정된 경우 적용
+      const setResult = htmlManager.setHTML(aiFixResponse.fixedHTML);
+      if (setResult.success) {
+        console.log('✅ AI HTML 수정 완료');
+        return {
+          success: true,
+          message: `HTML 오류를 자동으로 수정했습니다: ${aiFixResponse.fixDescription}`,
+          updated: true,
+          type: 'success',
+          autoFixed: true
+        };
+      } else {
+        return {
+          success: false,
+          message: 'HTML 적용 중 오류가 발생했습니다.',
+          type: 'error'
+        };
+      }
+      
+    } catch (error) {
+      console.error('AI HTML 수정 중 오류:', error);
+      return {
+        success: false,
+        message: `HTML 자동 수정 실패: ${error.message}`,
+        type: 'error'
+      };
+    }
+  }
+
   // 디버깅 정보 제공
   getDebugInfo() {
     const htmlInfo = htmlManager.getDebugInfo();
