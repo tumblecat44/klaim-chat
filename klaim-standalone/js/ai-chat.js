@@ -222,8 +222,11 @@ class AIChatUI {
     const contentEl = document.createElement('div');
     contentEl.className = 'ai-message-content';
     
-    // JSON 코드 블록 처리
-    if (message.content.includes('{') && message.content.includes('}')) {
+    // 새로운 대화형 메시지 처리 (제안, 세부사항 등)
+    if (message.sender === 'bot' && this.isStructuredResponse(message.content)) {
+      contentEl.innerHTML = this.renderStructuredMessage(message.content);
+    } else if (message.content.includes('{') && message.content.includes('}')) {
+      // 기존 JSON 코드 블록 처리 (디버깅용)
       try {
         const jsonMatch = message.content.match(/\\{[\\s\\S]*\\}/);
         if (jsonMatch) {
@@ -256,6 +259,54 @@ class AIChatUI {
     this.elements.messages?.appendChild(messageEl);
   }
   
+  // 구조화된 메시지인지 판단
+  isStructuredResponse(content) {
+    return content.includes('💡') || content.includes('•') || content.includes('적용된 변경:');
+  }
+  
+  // 구조화된 메시지 렌더링
+  renderStructuredMessage(content) {
+    let html = '';
+    const lines = content.split('\n');
+    let currentSection = null;
+    
+    for (const line of lines) {
+      const trimmed = line.trim();
+      
+      if (!trimmed) {
+        html += '<br>';
+        continue;
+      }
+      
+      // 제안 섹션 시작
+      if (trimmed.includes('💡')) {
+        currentSection = 'suggestions';
+        html += `<div class="ai-suggestions-header">${trimmed}</div>`;
+        continue;
+      }
+      
+      // 세부사항 섹션 시작
+      if (trimmed.includes('적용된 변경:')) {
+        currentSection = 'details';
+        html += `<div class="ai-details-header">${trimmed}</div>`;
+        continue;
+      }
+      
+      // 목록 항목 처리
+      if (trimmed.startsWith('•')) {
+        const itemText = trimmed.substring(2).trim();
+        const itemClass = currentSection === 'suggestions' ? 'ai-suggestion-item' : 'ai-detail-item';
+        html += `<div class="${itemClass}">• ${itemText}</div>`;
+        continue;
+      }
+      
+      // 일반 텍스트
+      html += `<div class="ai-text-line">${trimmed}</div>`;
+    }
+    
+    return html;
+  }
+  
   showTypingIndicator() {
     const typingEl = document.createElement('div');
     typingEl.className = 'ai-typing';
@@ -267,7 +318,7 @@ class AIChatUI {
         <div class="ai-typing-dot"></div>
         <div class="ai-typing-dot"></div>
       </div>
-      <span>AI가 생각 중...</span>
+      <span>페이지를 편집 중...</span>
     `;
     
     this.elements.messages?.appendChild(typingEl);

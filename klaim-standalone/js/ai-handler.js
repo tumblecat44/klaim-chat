@@ -28,27 +28,36 @@ class AIHandler {
       const contextPrompt = this.buildContextPrompt(currentHTML, userMessage);
       
       // 3. Gemini API로 HTML 연산 생성
-      const operations = await geminiAPI.generateStructuredOutput(contextPrompt, htmlOperationsSchema);
+      const aiResponse = await geminiAPI.generateStructuredOutput(contextPrompt, htmlOperationsSchema);
       
-      // 4. 연산 검증
-      const validationErrors = validateHTMLOperations(operations);
+      // 4. 정보 부족으로 질문이 필요한 경우 처리
+      if (aiResponse.response && aiResponse.response.clarification && aiResponse.operations.length === 0) {
+        return {
+          message: `${aiResponse.response.summary}\n\n${aiResponse.response.clarification}`,
+          type: 'clarification',
+          needsMoreInfo: true
+        };
+      }
+      
+      // 5. 연산 검증
+      const validationErrors = validateHTMLOperations(aiResponse);
       if (validationErrors.length > 0) {
         console.warn('연산 검증 경고:', validationErrors);
         throw new Error('생성된 HTML 연산이 유효하지 않습니다: ' + validationErrors.join(', '));
       }
       
-      // 5. HTML 연산 적용
-      const result = htmlManager.applyOperations(operations.operations);
+      // 6. HTML 연산 적용
+      const result = htmlManager.applyOperations(aiResponse.operations);
       
       if (!result.success) {
         throw new Error(result.error);
       }
       
-      // 6. 미리보기 업데이트
+      // 7. 미리보기 업데이트
       this.updatePreview();
       
-      // 7. 성공 응답 생성
-      return this.generateSuccessResponse(userMessage, operations.operations, result);
+      // 8. AI의 응답을 사용하여 친절한 메시지 반환
+      return this.generateEnhancedResponse(aiResponse.response, aiResponse.operations, result);
       
     } catch (error) {
       console.error('❌ AI 처리 오류:', error);
@@ -69,8 +78,9 @@ ${currentHTML}
 
 사용자 요청: "${userMessage}"
 
-위 HTML 코드를 분석하여 사용자 요청에 맞는 search/replace 연산을 생성해주세요.
-정확한 HTML 문자열 매치가 중요하며, 공백과 줄바꿈을 정확히 맞춰주세요.`;
+위 HTML 코드를 분석하여 사용자 요청을 처리하세요.
+정확한 HTML 문자열 매치가 중요하며, 공백과 줄바꿈을 정확히 맞춰주세요.
+response 필드를 반드시 포함하여 사용자에게 친절한 응답을 제공하세요.`;
   }
   
   // 미리보기 업데이트 (iframe에 새로운 HTML 적용)
@@ -99,7 +109,34 @@ ${currentHTML}
     }
   }
   
-  // 성공 응답 생성
+  // 개선된 응답 생성 (대화형)
+  generateEnhancedResponse(aiResponse, operations, result) {
+    // AI가 제공한 response 사용
+    let message = aiResponse.summary || `변경사항을 적용했습니다.`;
+    
+    // 세부 사항이 있으면 추가
+    if (aiResponse.details && aiResponse.details.length > 0) {
+      message += `\n\n적용된 변경:\n`;
+      message += aiResponse.details.map(detail => `• ${detail}`).join('\n');
+    }
+    
+    // 제안사항이 있으면 추가
+    if (aiResponse.suggestions && aiResponse.suggestions.length > 0) {
+      message += `\n\n💡 추가 제안:\n`;
+      message += aiResponse.suggestions.map(suggestion => `• ${suggestion}`).join('\n');
+    }
+    
+    return {
+      message,
+      updated: true,
+      type: 'success',
+      operationCount: operations.length,
+      hasDetails: !!(aiResponse.details && aiResponse.details.length > 0),
+      hasSuggestions: !!(aiResponse.suggestions && aiResponse.suggestions.length > 0)
+    };
+  }
+  
+  // 기존 메서드 (호환성을 위해 유지)
   generateSuccessResponse(userMessage, operations, result) {
     const operationCount = operations.length;
     const operationSummary = operations.map(op => 

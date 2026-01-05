@@ -1,4 +1,4 @@
-/* AI 채팅 UI 스타일 */
+/* AI 채팅 UI 스타일 - 개선된 대화형 메시지 포함 */
 
 /* AI 토글 버튼 (플로팅) */
 .ai-chat-toggle {
@@ -155,6 +155,46 @@
 
 .ai-message.bot .ai-message-time {
   text-align: left;
+}
+
+/* 새로운 구조화된 메시지 스타일 */
+.ai-suggestions-header {
+  font-weight: 600;
+  color: #4EA699;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+}
+
+.ai-details-header {
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+}
+
+.ai-suggestion-item {
+  padding: 6px 12px;
+  margin: 2px 0;
+  color: #059669;
+  background: rgba(16, 185, 129, 0.05);
+  border-radius: 6px;
+  border-left: 3px solid #10B981;
+  font-size: 0.85rem;
+}
+
+.ai-detail-item {
+  padding: 6px 12px;
+  margin: 2px 0;
+  color: #6B7280;
+  background: rgba(107, 114, 128, 0.05);
+  border-radius: 6px;
+  border-left: 3px solid #D1D5DB;
+  font-size: 0.85rem;
+}
+
+.ai-text-line {
+  margin: 4px 0;
+  line-height: 1.5;
 }
 
 /* 로딩 인디케이터 */
