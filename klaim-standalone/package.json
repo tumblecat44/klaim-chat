@@ -1,0 +1,14 @@
+{
+  "name": "klaim-standalone",
+  "version": "1.0.0",
+  "description": "AI Chat-based Promotion Builder MVP",
+  "main": "index.html",
+  "type": "module",
+  "scripts": {
+    "dev": "python3 -m http.server 8000",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["ai", "gemini", "promotion", "builder", "mvp"],
+  "author": "",
+  "license": "ISC"
+}

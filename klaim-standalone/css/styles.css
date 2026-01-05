@@ -42,9 +42,38 @@ body {
 
 .view-toggle {
     display: flex;
+    align-items: center;
+    gap: 0.5rem;
     background: #f3f4f6;
     border-radius: 0.5rem;
     padding: 0.25rem;
+}
+
+/* AI 테스트 버튼 스타일 */
+.btn-test-ai {
+    background: #4EA699;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.btn-test-ai:hover {
+    background: #3d8b7f;
+    transform: translateY(-1px);
+}
+
+.btn-test-ai:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+    transform: none;
 }
 
 .btn-view {

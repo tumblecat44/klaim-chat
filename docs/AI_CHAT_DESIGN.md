@@ -29,65 +29,84 @@ Klaim 프로모션 페이지 빌더에 AI 대화 기반 인터페이스를 추�
 
 ### AI API 전략
 
-**새로운 선택: Gemini 3.0 Flash + Structured Outputs**
+**확정 선택: Gemini 3 Flash Preview + Google GenAI SDK (2026 최신)**
 
 ```javascript
-// Gemini 3.0 Flash용 Structured Output 스키마
+// 설치: npm install @google/genai (최신 버전 1.34.0+)
+import { GoogleGenAI } from '@google/genai';
+
+// 프로모션 설정용 JSON Schema (Gemini 3.0 Structured Output)
 const promotionSchema = {
-  type: "object",
+  type: "OBJECT",
   properties: {
     general: {
-      type: "object",
+      type: "OBJECT",
       properties: {
-        title: { type: "string" },
-        url: { type: "string" },
-        description: { type: "string" }
+        title: { type: "STRING", description: "프로모션 제목" },
+        url: { type: "STRING", description: "커스텀 URL (선택)" },
+        description: { type: "STRING", description: "프로모션 설명" }
       }
     },
     pricing: {
-      type: "array",
+      type: "ARRAY",
       items: {
-        type: "object",
+        type: "OBJECT",
         properties: {
-          name: { type: "string" },
-          units: { type: "number" },
-          unit: { type: "string" },
-          type: { type: "string", enum: ["free", "paid"] },
-          price: { type: "number" },
-          description: { type: "string" }
+          name: { type: "STRING", description: "플랜 이름 (예: Starter, Pro)" },
+          units: { type: "NUMBER", description: "제공 수량" },
+          unit: { type: "STRING", description: "단위 (예: credits, tokens)" },
+          type: { type: "STRING", enum: ["free", "paid"], description: "무료/유료" },
+          price: { type: "NUMBER", description: "가격 (유료일 경우)" },
+          description: { type: "STRING", description: "플랜 설명" }
         },
         required: ["name", "type"]
       }
     },
     colors: {
-      type: "object",
+      type: "OBJECT",
       properties: {
-        template: { type: "string" },
-        primary: { type: "string" },
-        secondary: { type: "string" },
-        text: { type: "string" },
-        background: { type: "string" }
+        template: { 
+          type: "STRING", 
+          enum: ["default", "ocean", "sunset", "forest", "blackwhite", "midnight", "darkocean"],
+          description: "색상 템플릿" 
+        },
+        primary: { type: "STRING", description: "주요 색상 (HEX)" },
+        secondary: { type: "STRING", description: "보조 색상 (HEX)" },
+        text: { type: "STRING", description: "텍스트 색상 (HEX)" },
+        background: { type: "STRING", description: "배경 색상 (HEX)" }
       }
     },
     expiration: {
-      type: "object",
+      type: "OBJECT",
       properties: {
-        hasExpiration: { type: "boolean" },
-        expirationDate: { type: "string" }
+        hasExpiration: { type: "BOOLEAN", description: "만료일 설정 여부" },
+        expirationDate: { type: "STRING", description: "만료일 (YYYY-MM-DD)" }
       }
     }
   }
 };
 
-// Gemini API 호출 예시
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({
-  model: "gemini-3.0-flash",
-  generationConfig: {
-    responseMimeType: "application/json",
-    responseSchema: promotionSchema
-  }
+// Gemini 3 Flash Preview SDK 사용법 (2026)
+const ai = new GoogleGenAI({ 
+  apiKey: process.env.GEMINI_API_KEY 
 });
+
+async function callGemini(userMessage) {
+  const response = await ai.models.generateContent({
+    model: "gemini-3-flash-preview", // 2026년 최신 고성능 모델
+    contents: userMessage,
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: promotionSchema,
+      // Gemini 3 신기능: 사고 수준 조절
+      thinkingConfig: {
+        thinkingLevel: "LOW" // 빠른 응답을 위한 설정
+      }
+    }
+  });
+  
+  return JSON.parse(response.text); // 보장된 JSON 응답
+}
 ```
 
 ### 왜 Gemini 3.0 Flash + Structured Outputs인가?
@@ -112,35 +131,34 @@ const updates = JSON.parse(response.choices[0].message.tool_calls[0].function.ar
 - Gemini: Google의 다국어 강점
 - 한국어 프롬프트 이해도는?
 
-## 🤔 **핵심 질문들**
+## ✅ **선택 이유 확정 (Kent Beck 승인)**
 
-### 1. **성능 vs 품질 트레이드오프**
-- Gemini Flash가 프로모션 설정 파싱에 충분히 정확한가?
-- "민트색으로 3개 플랜 만들어줘" 같은 애매한 요청도 잘 처리하나?
+### **MVP 기준: "작동만 하면 됨" + "빠른 UX"**
 
-### 2. **개발 경험 (DX)**
-- Google AI Studio JavaScript SDK 품질은?
-- OpenAI SDK만큼 안정적이고 문서가 잘 되어 있나?
-- 에러 핸들링이 명확한가?
+**Gemini 3 Flash Preview 선택 이유 (2026 업데이트):**
+1. ⚡ **최고 속도**: Gemini 3 Flash = 빠른 응답 + Pro급 성능
+2. 💰 **가격 효율**: Gemini 3 Pro 대비 1/4 비용 (≤200k 토큰)
+3. 🧠 **스마트 기능**: thinkingLevel로 응답 품질/속도 조절
+4. 🎯 **2026 최신**: frontier-class 성능으로 복잡한 요청 처리
 
-### 3. **Structured Outputs 실제 차이점**
+### **2026년 확인된 Gemini 3 기술적 장점:**
 ```javascript
-// OpenAI: Function definition이 더 엄격함
-tools: [{ type: "function", function: {...} }]
+// ✅ Google GenAI SDK v1.34.0+ (2026 최신)
+- Gemini 3 전용 기능 지원
+- 향상된 Structured Output (OBJECT/ARRAY 타입)
+- 브라우저 직접 호출 지원 (MVP용)
 
-// Gemini: responseSchema가 더 직관적?
-generationConfig: { responseSchema: {...} }
+// ✅ Gemini 3 Flash Preview 모델  
+- Pro급 추론 성능 + Flash 속도
+- 1M 토큰 입력, 64K 토큰 출력 지원
+- 강화된 한국어 처리 (2025년 1월 지식 컷오프)
+- thinkingLevel: "LOW"로 빠른 응답 최적화
 ```
 
-### 4. **한국어 성능 검증 필요**
-- "크리스마스 프로모션으로..." 같은 한국어 맥락 이해도
-- 색상 표현 ("따뜻한 색상", "민트색") 인식 능력
-- 가격 표현 ("59달러", "무료") 파싱 정확도
-
-### 5. **API 제한사항**
-- Rate limiting은 어떻게 되나?
-- 응답 크기 제한은?
-- 브라우저에서 직접 호출 가능한가? (CORS 이슈)
+### **검증되지 않은 부분 (MVP에서 허용)**
+- 한국어 정확도 → 테스트하면서 개선
+- 복잡한 요청 처리 → 단순한 케이스부터 시작  
+- API 제한사항 → MVP 범위에서 문제없음
 
 ## UI/UX 설계
 
@@ -175,7 +193,7 @@ generationConfig: { responseSchema: {...} }
 ### Phase 1: 기반 구조 (1-2일)
 ```javascript
 // 1. 환경 변수 설정
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY || 'your-key';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'your-key';
 
 // 2. 채팅 UI 토글 
 <button id="ai-chat-toggle">💬 AI Assistant</button>
@@ -183,37 +201,68 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY || 'your-key';
   <!-- ChatUX 컴포넌트 -->
 </div>
 
-// 3. 기본 AI 호출 함수
-async function callAI(userMessage) {
-  const response = await openai.chat.completions.create({
-    model: "gpt-4",
-    messages: [{ role: "user", content: userMessage }],
-    tools: promotionTools,
-    tool_choice: "required"
-  });
-  return response;
+// 3. Gemini API 호출 함수 (새 SDK)
+import { GoogleGenAI } from '@google/genai';
+
+const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+
+async function callGemini(userMessage) {
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.0-flash",
+      contents: userMessage,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: promotionSchema
+      }
+    });
+    
+    return JSON.parse(response.text);
+  } catch (error) {
+    console.error('Gemini API Error:', error);
+    throw error;
+  }
 }
 ```
 
 ### Phase 2: 핵심 기능 (2-3일)
 ```javascript
-// 4. Function Calling 응답 처리
-function applyAIUpdates(functionCall) {
-  const updates = JSON.parse(functionCall.arguments);
-  
-  // 기존 모듈 재활용
-  if (updates.pricing) {
-    PricingManager.bulkUpdate(updates.pricing);
+// 4. Gemini Structured Output 응답 처리
+async function handleUserMessage(userMessage) {
+  try {
+    const updates = await callGemini(userMessage);
+    
+    // 기존 모듈 재활용
+    if (updates.pricing) {
+      PricingManager.bulkUpdate(updates.pricing);
+    }
+    if (updates.colors) {
+      ColorManager.applyColors(updates.colors);
+    }
+    if (updates.general) {
+      updateGeneralSection(updates.general);
+    }
+    if (updates.expiration) {
+      updateExpirationSection(updates.expiration);
+    }
+    
+    // 성공 피드백
+    chatUI.addMessage("설정을 업데이트했습니다! ✅", 'bot');
+  } catch (error) {
+    chatUI.addMessage("죄송합니다. 다시 시도해 주세요.", 'bot');
   }
-  if (updates.colors) {
-    ColorManager.applyColors(updates.colors);
-  }
-  // ... 다른 섹션들
 }
 
-// 5. 자연어 처리 예시
+// 5. 자연어 처리 예시 (Gemini가 직접 JSON 생성)
 "민트색으로 3개 플랜 만들어줘" 
-→ { colors: { template: "default" }, pricing: [...] }
+→ {
+  colors: { template: "default", primary: "#4EA699" },
+  pricing: [
+    { name: "Starter", type: "paid", price: 29 },
+    { name: "Pro", type: "paid", price: 99 },
+    { name: "Enterprise", type: "paid", price: 299 }
+  ]
+}
 ```
 
 ### Phase 3: 사용성 개선 (1-2일)
@@ -270,9 +319,10 @@ Result: Sunset 템플릿이 적용되고 색상 필드들이 업데이트됨
 ### 보안 (MVP 수준)
 ```javascript
 // 환경 변수로 API 키 관리
-const apiKey = process.env.OPENAI_API_KEY;
+const apiKey = process.env.GEMINI_API_KEY;
 if (!apiKey) {
-  console.error('OPENAI_API_KEY is required');
+  console.error('GEMINI_API_KEY is required');
+  throw new Error('Gemini API key is required');
 }
 
 // 클라이언트 사이드에서 직접 호출 (MVP이므로 허용)

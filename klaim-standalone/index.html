@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Klaim Promotion Builder</title>
     <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/ai-chat.css">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
 <body>
@@ -17,6 +18,10 @@
         <div class="view-toggle">
             <button class="btn-view active" data-view="desktop">Desktop</button>
             <button class="btn-view" data-view="mobile">Mobile</button>
+            <!-- AI 테스트 버튼 (MVP) -->
+            <button id="test-ai-btn" class="btn-test-ai" title="Gemini API 연결 테스트">
+                🤖 AI Test
+            </button>
         </div>
     </header>
 
@@ -235,11 +240,56 @@
         </div>
     </div>
 
+    <!-- AI 채팅 UI -->
+    <!-- AI 토글 버튼 -->
+    <button id="ai-chat-toggle" class="ai-chat-toggle">
+        💬 AI Assistant
+    </button>
+
+    <!-- AI 채팅 패널 -->
+    <div id="ai-chat-panel" class="ai-chat-panel hidden">
+        <!-- 채팅 헤더 -->
+        <div class="ai-chat-header">
+            <h3>🤖 AI Assistant</h3>
+            <button id="ai-chat-close" class="ai-chat-close" title="닫기">
+                ×
+            </button>
+        </div>
+
+        <!-- 채팅 메시지 영역 -->
+        <div id="ai-chat-messages" class="ai-chat-messages">
+            <!-- 메시지들이 여기에 동적으로 추가됩니다 -->
+        </div>
+
+        <!-- 채팅 입력 영역 -->
+        <div class="ai-chat-input">
+            <!-- 빠른 액션 버튼들 -->
+            <div id="ai-quick-actions" class="ai-quick-actions">
+                <button class="ai-quick-button" data-action="3개 기본 플랜 만들어줘">3개 기본 플랜</button>
+                <button class="ai-quick-button" data-action="민트색 테마로 바꿔줘">민트 테마</button>
+                <button class="ai-quick-button" data-action="모든 가격을 30% 할인해줘">30% 할인</button>
+            </div>
+
+            <!-- 입력 컨테이너 -->
+            <div class="ai-input-container">
+                <textarea 
+                    id="ai-input-field" 
+                    class="ai-input-field" 
+                    placeholder="프로모션 설정을 자연어로 말씀해주세요..."
+                    rows="1"
+                ></textarea>
+                <button id="ai-send-button" class="ai-send-button" title="전송">
+                    ➤
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
-    <script src="js/storage.js"></script>
-    <script src="js/colors.js"></script>
-    <script src="js/pricing.js"></script>
-    <script src="js/preview.js"></script>
     <script src="js/app.js"></script>
+    
+    <!-- AI 기능 (ES 모듈) -->
+    <script type="module" src="js/ai-test.js"></script>
+    <script type="module" src="js/ai-chat.js"></script>
 </body>
 </html>
