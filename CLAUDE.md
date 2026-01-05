@@ -12,7 +12,6 @@
 - **위치**: Klaim 생태계 내의 기능 개선 프로젝트
 
 ## 프로젝트 상태
-- 기술 설계 초안 존재 (docs/CURRENT_DASHBOARD.md)
 - Klaim 서비스 문서 생성됨 (docs/KLAIM_SERVICE.md)
 - 실제 구현은 아직 시작하지 않음
 - 기술 스택 미정

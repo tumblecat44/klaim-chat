@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Promotion Preview</title>
+    <style>
+        :root {
+            --primary-color: #4EA699;
+            --secondary-color: #140D4F;
+            --text-color: #1F2937;
+            --accent-text-color: #FFFFFF;
+            --background-color: #FFFFFF;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: var(--background-color);
+            color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .logo {
+            width: 60px;
+            height: 60px;
+            background: var(--primary-color);
+            color: var(--accent-text-color);
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+        }
+
+        .brand-name {
+            font-size: 2rem;
+            font-weight: 600;
+            color: var(--text-color);
+            margin-bottom: 0.5rem;
+            outline: none;
+        }
+
+        .brand-name[contenteditable]:hover {
+            background: rgba(78, 166, 153, 0.1);
+            border-radius: 4px;
+        }
+
+        .pricing-cards {
+            display: flex;
+            gap: 1.5rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 3rem;
+        }
+
+        .pricing-card {
+            flex: 1;
+            min-width: 200px;
+            max-width: 250px;
+            padding: 1.5rem;
+            border: 2px solid var(--primary-color);
+            border-radius: 0.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .pricing-card.selected {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--accent-text-color);
+            transform: scale(1.05);
+        }
+
+        .pricing-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .plan-name {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            outline: none;
+        }
+
+        .plan-price {
+            font-size: 1.75rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+            outline: none;
+        }
+
+        .pricing-card.selected .plan-price {
+            color: var(--accent-text-color);
+        }
+
+        .plan-description {
+            font-size: 0.875rem;
+            color: #6b7280;
+            outline: none;
+        }
+
+        .pricing-card.selected .plan-description {
+            color: var(--accent-text-color);
+            opacity: 0.9;
+        }
+
+        .form-container {
+            background: #f9fafb;
+            padding: 2rem;
+            border-radius: 0.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.375rem;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(78, 166, 153, 0.1);
+        }
+
+        .coupon-group {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .coupon-input {
+            flex: 1;
+        }
+
+        .btn-apply {
+            padding: 0.75rem 1.5rem;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .btn-apply:hover {
+            background: #3d8579;
+        }
+
+        .btn-claim {
+            width: 100%;
+            padding: 1rem;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 0.375rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .btn-claim:hover {
+            background: #3d8579;
+        }
+
+        .limited-banner {
+            background: linear-gradient(90deg, #ef4444, #f97316);
+            color: white;
+            text-align: center;
+            padding: 0.75rem;
+            font-weight: 500;
+            margin-bottom: 2rem;
+            border-radius: 0.375rem;
+            display: none;
+        }
+
+        .limited-banner.active {
+            display: block;
+        }
+
+        /* Mobile Styles */
+        @media (max-width: 768px) {
+            .pricing-cards {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .pricing-card {
+                max-width: 100%;
+                width: 100%;
+            }
+        }
+
+        /* Editable Styles */
+        [contenteditable="true"]:focus {
+            outline: 2px dashed var(--primary-color);
+            outline-offset: 2px;
+            padding: 2px 4px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="limited-banner" id="limited-banner">
+            🔥 Limited-time offer! Ends soon.
+        </div>
+
+        <div class="header">
+            <div class="logo" id="brand-logo">B</div>
+            <h1 class="brand-name" contenteditable="true" id="brand-name">JasonCom</h1>
+        </div>
+
+        <div class="pricing-cards" id="pricing-cards">
+            <div class="pricing-card selected" data-plan="free">
+                <h3 class="plan-name" contenteditable="true">Free</h3>
+                <div class="plan-price" contenteditable="true">FREE</div>
+                <p class="plan-description" contenteditable="true">This is free item</p>
+            </div>
+            <div class="pricing-card" data-plan="jaosn">
+                <h3 class="plan-name" contenteditable="true">Jaosn</h3>
+                <div class="plan-price" contenteditable="true">FREE</div>
+                <p class="plan-description" contenteditable="true">ddfdd</p>
+            </div>
+        </div>
+
+        <div class="form-container">
+            <div class="form-group">
+                <label class="form-label" for="name">Name</label>
+                <input type="text" class="form-input" id="name" placeholder="Enter your name">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="email">Email</label>
+                <input type="email" class="form-input" id="email" placeholder="Enter your email">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Coupon Code</label>
+                <div class="coupon-group">
+                    <input type="text" class="form-input coupon-input" id="coupon" placeholder="Enter coupon code">
+                    <button class="btn-apply">Apply</button>
+                </div>
+            </div>
+
+            <button class="btn-claim">Claim Credits</button>
+        </div>
+    </div>
+
+    <script>
+        // Handle pricing card selection
+        document.querySelectorAll('.pricing-card').forEach(card => {
+            card.addEventListener('click', function() {
+                document.querySelectorAll('.pricing-card').forEach(c => c.classList.remove('selected'));
+                this.classList.add('selected');
+            });
+        });
+
+        // Handle contenteditable changes
+        document.querySelectorAll('[contenteditable]').forEach(element => {
+            element.addEventListener('input', function() {
+                // Send message to parent about content change
+                window.parent.postMessage({
+                    type: 'content-change',
+                    elementId: this.id,
+                    value: this.innerText
+                }, '*');
+            });
+        });
+
+        // Listen for updates from parent
+        window.addEventListener('message', function(e) {
+            if (e.data.type === 'update-content') {
+                const element = document.getElementById(e.data.elementId);
+                if (element) {
+                    element.innerText = e.data.value;
+                }
+            } else if (e.data.type === 'update-colors') {
+                const root = document.documentElement;
+                Object.entries(e.data.colors).forEach(([key, value]) => {
+                    root.style.setProperty(`--${key}`, value);
+                });
+            } else if (e.data.type === 'update-pricing') {
+                updatePricingCards(e.data.pricing);
+            } else if (e.data.type === 'toggle-expiration') {
+                const banner = document.getElementById('limited-banner');
+                if (e.data.hasExpiration) {
+                    banner.classList.add('active');
+                } else {
+                    banner.classList.remove('active');
+                }
+            } else if (e.data.type === 'update-logo') {
+                const logo = document.getElementById('brand-logo');
+                if (e.data.title) {
+                    logo.innerText = e.data.title.charAt(0).toUpperCase();
+                }
+            }
+        });
+
+        function updatePricingCards(pricingData) {
+            const container = document.getElementById('pricing-cards');
+            container.innerHTML = '';
+            
+            pricingData.forEach((item, index) => {
+                const card = document.createElement('div');
+                card.className = 'pricing-card' + (index === 0 ? ' selected' : '');
+                card.dataset.plan = item.name.toLowerCase().replace(/\s/g, '-');
+                
+                card.innerHTML = `
+                    <h3 class="plan-name" contenteditable="true">${item.name}</h3>
+                    <div class="plan-price" contenteditable="true">${item.type === 'free' ? 'FREE' : `$${item.price}`}</div>
+                    <p class="plan-description" contenteditable="true">${item.description}</p>
+                `;
+                
+                // Re-attach event listeners
+                card.addEventListener('click', function() {
+                    document.querySelectorAll('.pricing-card').forEach(c => c.classList.remove('selected'));
+                    this.classList.add('selected');
+                });
+                
+                card.querySelectorAll('[contenteditable]').forEach(element => {
+                    element.addEventListener('input', function() {
+                        window.parent.postMessage({
+                            type: 'content-change',
+                            elementId: this.className,
+                            planIndex: index,
+                            value: this.innerText
+                        }, '*');
+                    });
+                });
+                
+                container.appendChild(card);
+            });
+        }
+    </script>
+</body>
+</html>

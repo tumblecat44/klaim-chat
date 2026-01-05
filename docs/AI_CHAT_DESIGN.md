@@ -1,0 +1,315 @@
+# AI Chat-based Promotion Builder 설계 문서
+
+## 프로젝트 개요
+
+### 목적
+Klaim 프로모션 페이지 빌더에 AI 대화 기반 인터페이스를 추가하여 복잡한 폼 기반 설정을 자연어로 간소화
+
+### 범위
+- 기존 klaim-standalone 프로젝트에 AI 채팅 기능 통합
+- MVP: 실제 배포 없음, 프로토타입 수준
+- 하이브리드 UI: 기존 폼 + AI 채팅 인터페이스 병존
+
+## Kent Beck 설계 철학 적용
+
+### Simple Design 4 Rules
+1. **Tests pass**: 기존 기능 보존하면서 AI 기능 추가
+2. **Reveals intention**: 자연어 → 설정 변경 의도 명확화  
+3. **No duplication**: 기존 모듈(PricingManager, ColorManager) 재활용
+4. **Fewest elements**: 최소 복잡도로 최대 효과
+
+### YAGNI (You Aren't Gonna Need It) 적용
+- ❌ 복잡한 AI 체이닝
+- ❌ 다중 모델 지원  
+- ❌ 고도화된 NLP 분석
+- ✅ 단일 API 호출로 모든 설정 변경
+- ✅ 구조화된 응답으로 직접 UI 업데이트
+
+## 기술 아키텍처
+
+### AI API 전략
+
+**새로운 선택: Gemini 3.0 Flash + Structured Outputs**
+
+```javascript
+// Gemini 3.0 Flash용 Structured Output 스키마
+const promotionSchema = {
+  type: "object",
+  properties: {
+    general: {
+      type: "object",
+      properties: {
+        title: { type: "string" },
+        url: { type: "string" },
+        description: { type: "string" }
+      }
+    },
+    pricing: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          units: { type: "number" },
+          unit: { type: "string" },
+          type: { type: "string", enum: ["free", "paid"] },
+          price: { type: "number" },
+          description: { type: "string" }
+        },
+        required: ["name", "type"]
+      }
+    },
+    colors: {
+      type: "object",
+      properties: {
+        template: { type: "string" },
+        primary: { type: "string" },
+        secondary: { type: "string" },
+        text: { type: "string" },
+        background: { type: "string" }
+      }
+    },
+    expiration: {
+      type: "object",
+      properties: {
+        hasExpiration: { type: "boolean" },
+        expirationDate: { type: "string" }
+      }
+    }
+  }
+};
+
+// Gemini API 호출 예시
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const model = genAI.getGenerativeModel({
+  model: "gemini-3.0-flash",
+  generationConfig: {
+    responseMimeType: "application/json",
+    responseSchema: promotionSchema
+  }
+});
+```
+
+### 왜 Gemini 3.0 Flash + Structured Outputs인가?
+
+#### Kent Beck 관점에서 재평가
+
+**1. Simplicity (단순함)**
+```javascript
+// Gemini Structured Outputs
+const response = await model.generateContent(userMessage);
+const updates = JSON.parse(response.response.text()); // 보장된 JSON
+
+// vs OpenAI Function Calling  
+const updates = JSON.parse(response.choices[0].message.tool_calls[0].function.arguments);
+```
+
+**2. Performance & Cost (성능과 비용)**
+- Gemini Flash: 더 빠른 응답 속도 + 저렴한 비용
+- OpenAI: 더 높은 품질 but 상대적으로 비싼 비용
+
+**3. 한국어 지원**
+- Gemini: Google의 다국어 강점
+- 한국어 프롬프트 이해도는?
+
+## 🤔 **핵심 질문들**
+
+### 1. **성능 vs 품질 트레이드오프**
+- Gemini Flash가 프로모션 설정 파싱에 충분히 정확한가?
+- "민트색으로 3개 플랜 만들어줘" 같은 애매한 요청도 잘 처리하나?
+
+### 2. **개발 경험 (DX)**
+- Google AI Studio JavaScript SDK 품질은?
+- OpenAI SDK만큼 안정적이고 문서가 잘 되어 있나?
+- 에러 핸들링이 명확한가?
+
+### 3. **Structured Outputs 실제 차이점**
+```javascript
+// OpenAI: Function definition이 더 엄격함
+tools: [{ type: "function", function: {...} }]
+
+// Gemini: responseSchema가 더 직관적?
+generationConfig: { responseSchema: {...} }
+```
+
+### 4. **한국어 성능 검증 필요**
+- "크리스마스 프로모션으로..." 같은 한국어 맥락 이해도
+- 색상 표현 ("따뜻한 색상", "민트색") 인식 능력
+- 가격 표현 ("59달러", "무료") 파싱 정확도
+
+### 5. **API 제한사항**
+- Rate limiting은 어떻게 되나?
+- 응답 크기 제한은?
+- 브라우저에서 직접 호출 가능한가? (CORS 이슈)
+
+## UI/UX 설계
+
+### 하이브리드 접근법
+
+```
+┌─────────────────┬─────────────────┐
+│   기존 폼 패널   │   미리보기 패널   │
+│                │                │
+│ ┌─────────────┐ │                │
+│ │ General     │ │     Preview    │
+│ │ Pricing     │ │                │
+│ │ Colors      │ │                │
+│ └─────────────┘ │                │
+│                │                │
+│ ┌─────────────┐ │                │
+│ │ AI Chat     │ │                │ 
+│ │ Toggle UI   │ │                │
+│ └─────────────┘ │                │
+└─────────────────┴─────────────────┘
+```
+
+### 채팅 UI 통합 방식
+
+**선택: ChatUX 라이브러리**
+- 순수 JavaScript, 최소 의존성
+- 기존 프로젝트 구조와 호환
+- 가벼운 구현 (< 50KB)
+
+## 구현 계획
+
+### Phase 1: 기반 구조 (1-2일)
+```javascript
+// 1. 환경 변수 설정
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY || 'your-key';
+
+// 2. 채팅 UI 토글 
+<button id="ai-chat-toggle">💬 AI Assistant</button>
+<div id="ai-chat-panel" class="hidden">
+  <!-- ChatUX 컴포넌트 -->
+</div>
+
+// 3. 기본 AI 호출 함수
+async function callAI(userMessage) {
+  const response = await openai.chat.completions.create({
+    model: "gpt-4",
+    messages: [{ role: "user", content: userMessage }],
+    tools: promotionTools,
+    tool_choice: "required"
+  });
+  return response;
+}
+```
+
+### Phase 2: 핵심 기능 (2-3일)
+```javascript
+// 4. Function Calling 응답 처리
+function applyAIUpdates(functionCall) {
+  const updates = JSON.parse(functionCall.arguments);
+  
+  // 기존 모듈 재활용
+  if (updates.pricing) {
+    PricingManager.bulkUpdate(updates.pricing);
+  }
+  if (updates.colors) {
+    ColorManager.applyColors(updates.colors);
+  }
+  // ... 다른 섹션들
+}
+
+// 5. 자연어 처리 예시
+"민트색으로 3개 플랜 만들어줘" 
+→ { colors: { template: "default" }, pricing: [...] }
+```
+
+### Phase 3: 사용성 개선 (1-2일)
+```javascript
+// 6. 맥락 인식
+function buildContextPrompt() {
+  const currentData = Storage.load();
+  return `현재 설정: ${JSON.stringify(currentData)}`;
+}
+
+// 7. 에러 처리 및 피드백
+function handleAIError(error) {
+  chatUI.addMessage("죄송합니다. 다시 시도해 주세요.", 'bot');
+}
+```
+
+## 예상 사용자 시나리오
+
+### 시나리오 1: 빠른 프로모션 생성
+```
+User: "크리스마스 프로모션으로 스타터 $29, 프로 $99, 엔터프라이즈 $299 3개 플랜 만들어줘"
+
+AI Response: 
+{
+  "general": { "title": "크리스마스 프로모션" },
+  "pricing": [
+    { "name": "Starter", "price": 29, "type": "paid" },
+    { "name": "Pro", "price": 99, "type": "paid" },
+    { "name": "Enterprise", "price": 299, "type": "paid" }
+  ]
+}
+
+Result: 3개 가격 플랜이 자동으로 생성되고 미리보기에 반영됨
+```
+
+### 시나리오 2: 색상 테마 변경
+```
+User: "좀 더 따뜻한 색상으로 바꿔줘"
+
+AI Response:
+{
+  "colors": {
+    "template": "sunset",
+    "primary": "#FF6B35",
+    "secondary": "#F7931E"
+  }
+}
+
+Result: Sunset 템플릿이 적용되고 색상 필드들이 업데이트됨
+```
+
+## 성능 및 보안 고려사항
+
+### 보안 (MVP 수준)
+```javascript
+// 환경 변수로 API 키 관리
+const apiKey = process.env.OPENAI_API_KEY;
+if (!apiKey) {
+  console.error('OPENAI_API_KEY is required');
+}
+
+// 클라이언트 사이드에서 직접 호출 (MVP이므로 허용)
+// 실제 운영 시에는 서버 프록시 필요
+```
+
+### 성능 최적화
+```javascript
+// 디바운싱으로 API 호출 최소화
+const debouncedAICall = debounce(callAI, 1000);
+
+// 로딩 상태 표시
+function showAILoading() {
+  chatUI.addMessage("생각 중... 🤔", 'bot', { temporary: true });
+}
+```
+
+## 개발 우선순위
+
+### 🚀 Must Have (MVP)
+1. ✅ 기본 채팅 UI 통합
+2. ✅ OpenAI Function Calling 구현
+3. ✅ 기존 모듈과 AI 응답 연동
+4. ✅ 실시간 미리보기 동기화
+
+### 🎯 Nice to Have (향후)
+1. 대화 히스토리 저장
+2. 실행 취소/다시 실행
+3. 음성 입력 지원
+4. 다국어 지원
+
+## Kent Beck의 마무리 철학
+
+> "Make it work, make it right, make it fast"
+
+1. **Make it work**: Function Calling으로 기본 동작 구현
+2. **Make it right**: 기존 모듈 재활용으로 코드 중복 제거  
+3. **Make it fast**: 필요할 때 최적화 (YAGNI)
+
+이 설계는 복잡성을 최소화하면서도 사용자에게 실질적 가치를 제공하는 Kent Beck의 철학을 충실히 따릅니다.
