@@ -38,7 +38,22 @@ export const htmlOperationsSchema = {
           },
           data: {
             type: "OBJECT",
-            description: "액션에 필요한 데이터"
+            description: "액션에 필요한 데이터",
+            properties: {
+              planIndex: { type: "NUMBER", description: "플랜 인덱스" },
+              planData: { 
+                type: "OBJECT", 
+                description: "플랜 데이터",
+                properties: {
+                  title: { type: "STRING", description: "플랜 이름" },
+                  price: { type: "STRING", description: "가격" },
+                  features: { type: "ARRAY", items: { type: "STRING" }, description: "기능 목록" },
+                  isRecommended: { type: "BOOLEAN", description: "추천 플랜 여부" }
+                }
+              },
+              expirationDate: { type: "STRING", description: "만료일" },
+              bulletPoints: { type: "ARRAY", items: { type: "STRING" }, description: "기능 목록" }
+            }
           },
           description: {
             type: "STRING",

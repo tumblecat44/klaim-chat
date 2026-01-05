@@ -18,12 +18,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('✅ 애플리케이션 초기화 완료');
 });
 
-// HTML Manager 초기화
+// HTML Manager 및 Action Manager 초기화
 async function initializeHTMLManager() {
     try {
-        // HTML Manager가 이미 동적으로 import되어야 함
-        // ai-chat.js에서 이미 처리할 예정
-        console.log('⏳ HTML Manager 초기화 중...');
+        console.log('⏳ 매니저들 초기화 중...');
+        
+        // HTML Manager 동적 import
+        const { default: htmlManager } = await import('./html-manager.js');
+        window.htmlManager = htmlManager; // 전역 접근 가능하게
+        
+        // Action Manager 동적 import  
+        const { default: actionManager } = await import('./action-manager.js');
+        window.actionManager = actionManager;
+        
+        console.log('✅ 매니저 초기화 완료');
         
         // 초기 프리뷰 설정
         const previewFrame = document.getElementById('preview-frame');
@@ -33,7 +41,7 @@ async function initializeHTMLManager() {
         }
         
     } catch (error) {
-        console.error('❌ HTML Manager 초기화 실패:', error);
+        console.error('❌ 매니저 초기화 실패:', error);
     }
 }
 

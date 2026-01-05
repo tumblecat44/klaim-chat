@@ -373,8 +373,33 @@ class AIChatUI {
 // 전역 인스턴스 생성
 const aiChatUI = new AIChatUI();
 
-// 전역에 노출 (app.js에서 사용)
-window.aiHandler = aiHandler;
-window.aiChatUI = aiChatUI;
+// 하이브리드 시스템을 위한 전역 매니저들 초기화
+async function initializeHybridManagers() {
+  try {
+    console.log('🔄 하이브리드 매니저들 초기화...');
+    
+    // 동적 import로 매니저들 로드
+    const { default: htmlManager } = await import('./html-manager.js');
+    const { default: actionManager } = await import('./action-manager.js');
+    
+    // 전역에 노출
+    window.htmlManager = htmlManager;
+    window.actionManager = actionManager;
+    window.aiHandler = aiHandler;
+    window.aiChatUI = aiChatUI;
+    
+    console.log('✅ 하이브리드 매니저들 초기화 완료');
+    
+  } catch (error) {
+    console.error('❌ 하이브리드 매니저들 초기화 실패:', error);
+  }
+}
+
+// 페이지 로드 시 자동 초기화
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializeHybridManagers);
+} else {
+  initializeHybridManagers();
+}
 
 export default aiChatUI;

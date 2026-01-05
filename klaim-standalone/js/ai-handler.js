@@ -4,13 +4,14 @@
 import geminiAPI from './gemini.js';
 import { htmlOperationsSchema, htmlEditPrompt, validateHTMLOperations, htmlFixSchema, htmlFixPrompt } from './schema.js';
 import htmlManager from './html-manager.js';
+import actionManager from './action-manager.js';
 
 class AIHandler {
   constructor() {
     this.isProcessing = false;
   }
   
-  // 사용자 메시지 처리 (메인 엔트리 포인트)
+  // 사용자 메시지 처리 (메인 엔트리 포인트) - 하이브리드 방식
   async processUserMessage(userMessage) {
     if (this.isProcessing) {
       throw new Error('이미 다른 요청을 처리 중입니다. 잠시 후 다시 시도해주세요.');
@@ -19,7 +20,7 @@ class AIHandler {
     this.isProcessing = true;
     
     try {
-      console.log('🔄 AI 요청 처리 시작:', userMessage);
+      console.log('🔄 하이브리드 AI 요청 처리 시작:', userMessage);
       
       // 1. 현재 HTML 컨텍스트 로드
       const currentHTML = htmlManager.getCurrentHTML();
@@ -27,52 +28,55 @@ class AIHandler {
       // 2. 컨텍스트가 포함된 프롬프트 생성
       const contextPrompt = this.buildContextPrompt(currentHTML, userMessage);
       
-      // 3. Gemini API로 HTML 연산 생성
+      // 3. Gemini API로 하이브리드 응답 생성 (operations + actions)
       const aiResponse = await geminiAPI.generateStructuredOutput(contextPrompt, htmlOperationsSchema);
       
       // 4. 정보 부족으로 질문이 필요한 경우 처리
-      if (aiResponse.response && aiResponse.response.clarification && aiResponse.operations.length === 0) {
-        return {
-          message: `${aiResponse.response.summary}\n\n${aiResponse.response.clarification}`,
-          type: 'clarification',
-          needsMoreInfo: true
-        };
+      if (aiResponse.response && aiResponse.response.clarification) {
+        const hasOperations = aiResponse.operations && aiResponse.operations.length > 0;
+        const hasActions = aiResponse.actions && aiResponse.actions.length > 0;
+        
+        if (!hasOperations && !hasActions) {
+          return {
+            message: `${aiResponse.response.summary}\n\n${aiResponse.response.clarification}`,
+            type: 'clarification',
+            needsMoreInfo: true
+          };
+        }
       }
       
-      // 5. 연산 검증
+      // 5. 응답 검증
       const validationErrors = validateHTMLOperations(aiResponse);
       if (validationErrors.length > 0) {
-        console.warn('연산 검증 경고:', validationErrors);
-        throw new Error('생성된 HTML 연산이 유효하지 않습니다: ' + validationErrors.join(', '));
+        console.warn('응답 검증 경고:', validationErrors);
+        throw new Error('생성된 응답이 유효하지 않습니다: ' + validationErrors.join(', '));
       }
       
-      // 6. HTML 연산 적용
-      const result = htmlManager.applyOperations(aiResponse.operations);
+      // 6. 하이브리드 처리: HTML operations + Actions
+      const results = await this.executeHybridOperations(aiResponse);
       
-      if (!result.success) {
-        // HTML 연산 실패 시 AI 기반 자동 수정 시도
-        if (result.error.includes('HTML') || result.error.includes('파싱')) {
-          console.log('🤖 AI 기반 HTML 수정 시도...');
-          const fixResult = await this.fixHTMLWithAI(userMessage, result.error);
-          
-          if (fixResult.success) {
-            console.log('✅ AI 기반 수정 성공');
-            this.updatePreview();
-            return fixResult;
-          }
+      if (!results.success && !results.partialSuccess) {
+        // 전체 실패 시 AI 기반 자동 수정 시도
+        console.log('🤖 하이브리드 처리 실패, AI 기반 수정 시도...');
+        const fixResult = await this.fixHTMLWithAI(userMessage, results.error || '처리 실패');
+        
+        if (fixResult.success) {
+          console.log('✅ AI 기반 수정 성공');
+          this.updatePreview();
+          return fixResult;
         }
         
-        throw new Error(result.error);
+        throw new Error(results.error || '하이브리드 처리 실패');
       }
       
       // 7. 미리보기 업데이트
       this.updatePreview();
       
-      // 8. AI의 응답을 사용하여 친절한 메시지 반환
-      return this.generateEnhancedResponse(aiResponse.response, aiResponse.operations, result);
+      // 8. 결과에 따른 응답 생성
+      return this.generateHybridResponse(aiResponse.response, results);
       
     } catch (error) {
-      console.error('❌ AI 처리 오류:', error);
+      console.error('❌ 하이브리드 AI 처리 오류:', error);
       return this.handleError(error, userMessage);
     } finally {
       this.isProcessing = false;
@@ -91,8 +95,144 @@ ${currentHTML}
 사용자 요청: "${userMessage}"
 
 위 HTML 코드를 분석하여 사용자 요청을 처리하세요.
+- 단순한 텍스트/색상 변경: operations 사용
+- 복잡한 구조 변경: actions 사용  
+- 복합 요청: operations + actions 조합 사용
 정확한 HTML 문자열 매치가 중요하며, 공백과 줄바꿈을 정확히 맞춰주세요.
 response 필드를 반드시 포함하여 사용자에게 친절한 응답을 제공하세요.`;
+  }
+  
+  // 하이브리드 처리: HTML operations + Actions 순차 실행
+  async executeHybridOperations(aiResponse) {
+    const results = {
+      success: false,
+      operationsResult: null,
+      actionsResult: null,
+      combinedErrors: []
+    };
+    
+    try {
+      console.log('🔄 하이브리드 처리 시작...');
+      
+      // 1단계: HTML Operations 처리
+      if (aiResponse.operations && aiResponse.operations.length > 0) {
+        console.log(`📝 HTML Operations 실행 (${aiResponse.operations.length}개)`);
+        
+        const operationsResult = htmlManager.applyOperations(aiResponse.operations);
+        results.operationsResult = operationsResult;
+        
+        if (!operationsResult.success) {
+          console.error('❌ HTML Operations 실패:', operationsResult.error);
+          results.combinedErrors.push(`HTML 편집 실패: ${operationsResult.error}`);
+        } else {
+          console.log('✅ HTML Operations 성공');
+        }
+      }
+      
+      // 2단계: Actions 처리
+      if (aiResponse.actions && aiResponse.actions.length > 0) {
+        console.log(`🚀 Actions 실행 (${aiResponse.actions.length}개)`);
+        
+        const actionsResult = await actionManager.executeActions(aiResponse.actions);
+        results.actionsResult = actionsResult;
+        
+        if (!actionsResult.success && !actionsResult.partialSuccess) {
+          console.error('❌ Actions 실패:', actionsResult.errors);
+          const actionErrors = actionsResult.errors?.map(e => e.error).join(', ') || '알 수 없는 액션 오류';
+          results.combinedErrors.push(`액션 처리 실패: ${actionErrors}`);
+        } else if (actionsResult.partialSuccess) {
+          console.warn('⚠️ Actions 부분 성공:', actionsResult);
+          const failedActions = actionsResult.errors?.length || 0;
+          results.combinedErrors.push(`${failedActions}개 액션 실패`);
+        } else {
+          console.log('✅ Actions 성공');
+        }
+      }
+      
+      // 3단계: 전체 결과 평가
+      const operationsOk = !aiResponse.operations?.length || (results.operationsResult?.success);
+      const actionsOk = !aiResponse.actions?.length || (results.actionsResult?.success || results.actionsResult?.partialSuccess);
+      
+      if (operationsOk && actionsOk) {
+        if (results.actionsResult?.partialSuccess) {
+          results.success = false;
+          results.partialSuccess = true;
+          results.error = `부분 성공: ${results.combinedErrors.join(', ')}`;
+        } else {
+          results.success = true;
+        }
+      } else {
+        results.success = false;
+        results.error = results.combinedErrors.join(', ') || '하이브리드 처리 실패';
+      }
+      
+      console.log(`📊 하이브리드 처리 완료: ${results.success ? '성공' : results.partialSuccess ? '부분 성공' : '실패'}`);
+      return results;
+      
+    } catch (error) {
+      console.error('❌ 하이브리드 처리 예외:', error);
+      results.success = false;
+      results.error = `하이브리드 처리 예외: ${error.message}`;
+      return results;
+    }
+  }
+  
+  // 하이브리드 결과에 따른 응답 생성
+  generateHybridResponse(aiResponse, hybridResults) {
+    // AI가 제공한 response 사용
+    let message = aiResponse.summary || '변경사항을 적용했습니다.';
+    
+    // 처리 결과 상세 정보 추가
+    const details = [];
+    
+    if (hybridResults.operationsResult?.success) {
+      const opCount = hybridResults.operationsResult.appliedCount || 0;
+      if (opCount > 0) {
+        details.push(`${opCount}개 HTML 편집 완료`);
+      }
+    }
+    
+    if (hybridResults.actionsResult?.success || hybridResults.actionsResult?.partialSuccess) {
+      const actionCount = hybridResults.actionsResult.executedCount || 0;
+      if (actionCount > 0) {
+        details.push(`${actionCount}개 액션 완료`);
+      }
+    }
+    
+    // AI 제공 세부사항과 결합
+    if (aiResponse.details && aiResponse.details.length > 0) {
+      details.push(...aiResponse.details);
+    }
+    
+    if (details.length > 0) {
+      message += `\n\n적용된 변경:\n`;
+      message += details.map(detail => `• ${detail}`).join('\n');
+    }
+    
+    // 에러가 있는 경우 추가
+    if (hybridResults.partialSuccess && hybridResults.combinedErrors.length > 0) {
+      message += `\n\n⚠️ 일부 문제:\n`;
+      message += hybridResults.combinedErrors.map(error => `• ${error}`).join('\n');
+    }
+    
+    // 제안사항이 있으면 추가
+    if (aiResponse.suggestions && aiResponse.suggestions.length > 0) {
+      message += `\n\n💡 추가 제안:\n`;
+      message += aiResponse.suggestions.map(suggestion => `• ${suggestion}`).join('\n');
+    }
+    
+    return {
+      message,
+      updated: true,
+      type: hybridResults.success ? 'success' : hybridResults.partialSuccess ? 'warning' : 'error',
+      hybridResults: {
+        operationsCount: hybridResults.operationsResult?.appliedCount || 0,
+        actionsCount: hybridResults.actionsResult?.executedCount || 0,
+        hasPartialFailure: hybridResults.partialSuccess || false
+      },
+      hasDetails: details.length > 0,
+      hasSuggestions: !!(aiResponse.suggestions && aiResponse.suggestions.length > 0)
+    };
   }
   
   // 미리보기 업데이트 (iframe에 새로운 HTML 적용)

@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>하이브리드 AI 시스템 테스트</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .test-section {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            background: #f9f9f9;
+        }
+        .test-button {
+            background: #4EA699;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 0.25rem;
+        }
+        .test-button:hover {
+            background: #3d8b7e;
+        }
+        .result {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+        .result.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+        }
+        .result.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+        }
+        .result.warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔄 하이브리드 AI 시스템 테스트</h1>
+    <p>기존 HTML operations + 새로운 Actions를 조합한 처리 테스트</p>
+
+    <!-- HTML Operations 테스트 -->
+    <div class="test-section">
+        <h2>📝 HTML Operations 테스트</h2>
+        <p>단순 텍스트/색상 변경 (기존 방식)</p>
+        
+        <button class="test-button" onclick="testTextChange()">제목 변경 테스트</button>
+        <button class="test-button" onclick="testColorChange()">색상 변경 테스트</button>
+        
+        <div id="html-operations-result" class="result" style="display: none;"></div>
+    </div>
+
+    <!-- Actions 테스트 -->
+    <div class="test-section">
+        <h2>🚀 Actions 테스트</h2>
+        <p>복잡한 DOM 조작 (새로운 방식)</p>
+        
+        <button class="test-button" onclick="testAddPlan()">플랜 추가 테스트</button>
+        <button class="test-button" onclick="testDeletePlan()">플랜 삭제 테스트</button>
+        <button class="test-button" onclick="testBulkUpdate()">대량 플랜 생성 테스트</button>
+        
+        <div id="actions-result" class="result" style="display: none;"></div>
+    </div>
+
+    <!-- 하이브리드 테스트 -->
+    <div class="test-section">
+        <h2>🔄 하이브리드 테스트</h2>
+        <p>HTML operations + Actions 조합 처리</p>
+        
+        <button class="test-button" onclick="testHybridSimple()">제목 변경 + 플랜 추가</button>
+        <button class="test-button" onclick="testHybridComplex()">복합 시나리오 테스트</button>
+        
+        <div id="hybrid-result" class="result" style="display: none;"></div>
+    </div>
+
+    <!-- 자연어 테스트 -->
+    <div class="test-section">
+        <h2>💬 자연어 처리 테스트</h2>
+        <p>실제 사용자 요청과 유사한 자연어 입력</p>
+        
+        <input type="text" id="natural-input" placeholder="예: '크리스마스 세일로 제목 바꾸고 3개 플랜 만들어줘'" style="width: 60%; padding: 0.5rem;">
+        <button class="test-button" onclick="testNaturalLanguage()">테스트 실행</button>
+        
+        <div id="natural-result" class="result" style="display: none;"></div>
+    </div>
+
+    <script type="module">
+        // 매니저들 import
+        let aiHandler, htmlManager, actionManager;
+
+        async function initializeManagers() {
+            try {
+                console.log('🔄 테스트 매니저들 초기화...');
+                
+                // 매니저들 동적 import
+                const { default: htmlMgr } = await import('./js/html-manager.js');
+                const { default: actionMgr } = await import('./js/action-manager.js');
+                const { default: aiHdlr } = await import('./js/ai-handler.js');
+                
+                htmlManager = htmlMgr;
+                actionManager = actionMgr;
+                aiHandler = aiHdlr;
+                
+                // 전역에서도 접근 가능하게
+                window.htmlManager = htmlManager;
+                window.actionManager = actionManager;
+                window.aiHandler = aiHandler;
+                
+                console.log('✅ 테스트 매니저들 초기화 완료');
+                
+            } catch (error) {
+                console.error('❌ 매니저 초기화 실패:', error);
+            }
+        }
+
+        // 페이지 로드 시 초기화
+        document.addEventListener('DOMContentLoaded', initializeManagers);
+
+        // 테스트 함수들을 전역에 노출
+        window.testTextChange = testTextChange;
+        window.testColorChange = testColorChange;
+        window.testAddPlan = testAddPlan;
+        window.testDeletePlan = testDeletePlan;
+        window.testBulkUpdate = testBulkUpdate;
+        window.testHybridSimple = testHybridSimple;
+        window.testHybridComplex = testHybridComplex;
+        window.testNaturalLanguage = testNaturalLanguage;
+
+        // HTML Operations 테스트들
+        async function testTextChange() {
+            const resultDiv = document.getElementById('html-operations-result');
+            resultDiv.style.display = 'block';
+            resultDiv.textContent = '테스트 실행 중...';
+            resultDiv.className = 'result';
+
+            try {
+                const mockResponse = {
+                    operations: [
+                        {
+                            search: '<h1 class="brand-name" contenteditable="true" id="brand-name">JasonCom</h1>',
+                            replace: '<h1 class="brand-name" contenteditable="true" id="brand-name">Winter Sale</h1>',
+                            description: '브랜드명을 Winter Sale로 변경'
+                        }
+                    ],
+                    actions: [],
+                    response: {
+                        summary: '제목을 Winter Sale로 변경했습니다.'
+                    }
+                };
+
+                const aiResponse = await aiHandler.executeHybridOperations(mockResponse);
+                
+                resultDiv.textContent = `HTML Operations 테스트 결과:\n${JSON.stringify(aiResponse, null, 2)}`;
+                resultDiv.className = aiResponse.success ? 'result success' : 'result error';
+
+            } catch (error) {
+                resultDiv.textContent = `오류: ${error.message}`;
+                resultDiv.className = 'result error';
+            }
+        }
+
+        async function testColorChange() {
+            const resultDiv = document.getElementById('html-operations-result');
+            resultDiv.style.display = 'block';
+            resultDiv.textContent = '색상 변경 테스트 실행 중...';
+            resultDiv.className = 'result';
+
+            try {
+                const mockResponse = {
+                    operations: [
+                        {
+                            search: '--primary-color: #4EA699;',
+                            replace: '--primary-color: #e53e3e;',
+                            description: '주요 색상을 빨간색으로 변경'
+                        }
+                    ],
+                    actions: [],
+                    response: {
+                        summary: '색상을 빨간색 테마로 변경했습니다.'
+                    }
+                };
+
+                const aiResponse = await aiHandler.executeHybridOperations(mockResponse);
+                
+                resultDiv.textContent = `색상 변경 테스트 결과:\n${JSON.stringify(aiResponse, null, 2)}`;
+                resultDiv.className = aiResponse.success ? 'result success' : 'result error';
+
+            } catch (error) {
+                resultDiv.textContent = `오류: ${error.message}`;
+                resultDiv.className = 'result error';
+            }
+        }
+
+        // Actions 테스트들
+        async function testAddPlan() {
+            const resultDiv = document.getElementById('actions-result');
+            resultDiv.style.display = 'block';
+            resultDiv.textContent = '플랜 추가 테스트 실행 중...';
+            resultDiv.className = 'result';
+
+            try {
+                const mockResponse = {
+                    operations: [],
+                    actions: [
+                        {
+                            type: 'ADD_PLAN',
+                            data: {
+                                name: 'Premium',
+                                price: 99,
+                                type: 'paid',
+                                description: 'Premium plan with advanced features'
+                            },
+                            description: 'Premium 플랜 추가'
+                        }
+                    ],
+                    response: {
+                        summary: 'Premium 플랜을 추가했습니다.'
+                    }
+                };
+
+                const aiResponse = await aiHandler.executeHybridOperations(mockResponse);
+                
+                resultDiv.textContent = `플랜 추가 테스트 결과:\n${JSON.stringify(aiResponse, null, 2)}`;
+                resultDiv.className = aiResponse.success ? 'result success' : 'result error';
+
+            } catch (error) {
+                resultDiv.textContent = `오류: ${error.message}`;
+                resultDiv.className = 'result error';
+            }
+        }
+
+        async function testDeletePlan() {
+            const resultDiv = document.getElementById('actions-result');
+            resultDiv.style.display = 'block';
+            resultDiv.textContent = '플랜 삭제 테스트 실행 중...';
+            resultDiv.className = 'result';
+
+            try {
+                const mockResponse = {
+                    operations: [],
+                    actions: [
+                        {
+                            type: 'DELETE_PLAN',
+                            data: { index: 1 },
+                            description: '두 번째 플랜 삭제'
+                        }
+                    ],
+                    response: {
+                        summary: '두 번째 플랜을 삭제했습니다.'
+                    }
+                };
+
+                const aiResponse = await aiHandler.executeHybridOperations(mockResponse);
+                
+                resultDiv.textContent = `플랜 삭제 테스트 결과:\n${JSON.stringify(aiResponse, null, 2)}`;
+                resultDiv.className = aiResponse.success ? 'result success' : 'result error';
+
+            } catch (error) {
+                resultDiv.textContent = `오류: ${error.message}`;
+                resultDiv.className = 'result error';
+            }
+        }
+
+        async function testBulkUpdate() {
+            const resultDiv = document.getElementById('actions-result');
+            resultDiv.style.display = 'block';
+            resultDiv.textContent = '대량 플랜 생성 테스트 실행 중...';
+            resultDiv.className = 'result';
+
+            try {
+                const mockResponse = {
+                    operations: [],
+                    actions: [
+                        {
+                            type: 'BULK_UPDATE_PRICING',
+                            data: {
+                                plans: [
+                                    { name: 'Starter', price: 29, type: 'paid', description: 'Perfect for beginners' },
+                                    { name: 'Pro', price: 99, type: 'paid', description: 'For professionals' },
+                                    { name: 'Enterprise', price: 299, type: 'paid', description: 'For large teams' }
+                                ]
+                            },
+                            description: '3개 플랜 일괄 생성'
+                        }
+                    ],
+                    response: {
+                        summary: '3개 플랜을 생성했습니다.'
+                    }
+                };
+
+                const aiResponse = await aiHandler.executeHybridOperations(mockResponse);
+                
+                resultDiv.textContent = `대량 플랜 생성 테스트 결과:\n${JSON.stringify(aiResponse, null, 2)}`;
+                resultDiv.className = aiResponse.success ? 'result success' : 'result error';
+
+            } catch (error) {
+                resultDiv.textContent = `오류: ${error.message}`;
+                resultDiv.className = 'result error';
+            }
+        }
+
+        // 하이브리드 테스트들
+        async function testHybridSimple() {
+            const resultDiv = document.getElementById('hybrid-result');
+            resultDiv.style.display = 'block';
+            resultDiv.textContent = '하이브리드 테스트 실행 중...';
+            resultDiv.className = 'result';
+
+            try {
+                const mockResponse = {
+                    operations: [
+                        {
+                            search: '<h1 class="brand-name" contenteditable="true" id="brand-name">JasonCom</h1>',
+                            replace: '<h1 class="brand-name" contenteditable="true" id="brand-name">Christmas Sale</h1>',
+                            description: '제목을 Christmas Sale로 변경'
+                        }
+                    ],
+                    actions: [
+                        {
+                            type: 'ADD_PLAN',
+                            data: {
+                                name: 'Holiday Special',
+                                price: 49,
+                                type: 'paid',
+                                description: 'Limited time holiday offer'
+                            },
+                            description: 'Holiday Special 플랜 추가'
+                        }
+                    ],
+                    response: {
+                        summary: '크리스마스 세일 제목으로 변경하고 Holiday Special 플랜을 추가했습니다.',
+                        details: ['제목: Christmas Sale', 'Holiday Special 플랜 추가 ($49)']
+                    }
+                };
+
+                const aiResponse = await aiHandler.executeHybridOperations(mockResponse);
+                const finalResult = aiHandler.generateHybridResponse(mockResponse.response, aiResponse);
+                
+                resultDiv.textContent = `하이브리드 처리 결과:\n${JSON.stringify(finalResult, null, 2)}`;
+                resultDiv.className = finalResult.type === 'success' ? 'result success' : 
+                                  finalResult.type === 'warning' ? 'result warning' : 'result error';
+
+            } catch (error) {
+                resultDiv.textContent = `오류: ${error.message}`;
+                resultDiv.className = 'result error';
+            }
+        }
+
+        async function testHybridComplex() {
+            const resultDiv = document.getElementById('hybrid-result');
+            resultDiv.style.display = 'block';
+            resultDiv.textContent = '복합 시나리오 테스트 실행 중...';
+            resultDiv.className = 'result';
+
+            try {
+                const mockResponse = {
+                    operations: [
+                        {
+                            search: '--primary-color: #4EA699;',
+                            replace: '--primary-color: #dc2626;',
+                            description: '주요 색상을 빨간색으로 변경'
+                        }
+                    ],
+                    actions: [
+                        {
+                            type: 'BULK_UPDATE_PRICING',
+                            data: {
+                                plans: [
+                                    { name: 'Black Friday Starter', price: 19, type: 'paid', description: 'Special discount' },
+                                    { name: 'Black Friday Pro', price: 49, type: 'paid', description: 'Best value' },
+                                    { name: 'Black Friday Ultimate', price: 99, type: 'paid', description: 'Everything included' }
+                                ]
+                            }
+                        }
+                    ],
+                    response: {
+                        summary: 'Black Friday 테마로 색상과 플랜을 모두 업데이트했습니다.',
+                        suggestions: ['만료일을 11월 30일로 설정하시겠습니까?']
+                    }
+                };
+
+                const aiResponse = await aiHandler.executeHybridOperations(mockResponse);
+                const finalResult = aiHandler.generateHybridResponse(mockResponse.response, aiResponse);
+                
+                resultDiv.textContent = `복합 시나리오 결과:\n${finalResult.message}`;
+                resultDiv.className = finalResult.type === 'success' ? 'result success' : 
+                                  finalResult.type === 'warning' ? 'result warning' : 'result error';
+
+            } catch (error) {
+                resultDiv.textContent = `오류: ${error.message}`;
+                resultDiv.className = 'result error';
+            }
+        }
+
+        // 자연어 처리 테스트 (실제 AI 호출)
+        async function testNaturalLanguage() {
+            const input = document.getElementById('natural-input');
+            const resultDiv = document.getElementById('natural-result');
+            
+            if (!input.value.trim()) {
+                alert('테스트할 자연어를 입력해주세요.');
+                return;
+            }
+            
+            resultDiv.style.display = 'block';
+            resultDiv.textContent = 'AI 처리 중...';
+            resultDiv.className = 'result';
+
+            try {
+                if (!aiHandler) {
+                    throw new Error('AI Handler가 초기화되지 않았습니다.');
+                }
+
+                const result = await aiHandler.processUserMessage(input.value);
+                
+                resultDiv.textContent = `자연어 처리 결과:\n${result.message}`;
+                resultDiv.className = result.type === 'success' ? 'result success' : 
+                                  result.type === 'warning' ? 'result warning' : 
+                                  result.type === 'clarification' ? 'result warning' : 'result error';
+
+            } catch (error) {
+                resultDiv.textContent = `오류: ${error.message}`;
+                resultDiv.className = 'result error';
+            }
+        }
+    </script>
+</body>
+</html>
